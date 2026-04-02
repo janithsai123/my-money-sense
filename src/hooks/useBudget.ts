@@ -40,6 +40,10 @@ export function useBudget() {
     setTransactions(prev => prev.filter(t => t.id !== id));
   }, []);
 
+  const editTransaction = useCallback((updated: Transaction) => {
+    setTransactions(prev => prev.map(t => t.id === updated.id ? updated : t));
+  }, []);
+
   const setBudgetLimit = useCallback((limit: number | null) => {
     setBudgetLimitState(limit);
   }, []);
