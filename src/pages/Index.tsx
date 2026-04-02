@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { Wallet, RotateCcw } from 'lucide-react';
+import { Wallet, RotateCcw, Sparkles } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useBudget } from '@/hooks/useBudget';
+import { useConfetti } from '@/hooks/useConfetti';
 import { SummaryCards } from '@/components/budget/SummaryCards';
 import { TransactionForm } from '@/components/budget/TransactionForm';
 import { TransactionList } from '@/components/budget/TransactionList';
@@ -14,6 +15,8 @@ import { ExportButton } from '@/components/budget/ExportButton';
 import { IncomeExpenseChart } from '@/components/budget/IncomeExpenseChart';
 import { SavingsGoal } from '@/components/budget/SavingsGoal';
 import { SearchFilter } from '@/components/budget/SearchFilter';
+import { RecentActivity } from '@/components/budget/RecentActivity';
+import { QuickStatsBadges } from '@/components/budget/QuickStatsBadges';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { Transaction } from '@/types/budget';
 import { toast } from 'sonner';
@@ -27,10 +30,15 @@ const Index = () => {
 
   const [searchQuery, setSearchQuery] = useState('');
 
+  // Check savings goal for confetti
+  const savingsGoalRaw = localStorage.getItem('savings-goal');
+  const savingsGoal = savingsGoalRaw ? parseFloat(savingsGoalRaw) : null;
+  const savingsGoalMet = savingsGoal !== null && savingsGoal > 0 && balance >= savingsGoal;
+  useConfetti(isOverBudget, balance, savingsGoalMet);
+
   const handleAdd = (t: Omit<Transaction, 'id'>) => {
     addTransaction(t);
     toast.success(`${t.type === 'income' ? 'Income' : 'Expense'} of $${t.amount.toFixed(2)} added`);
-    // Check budget after adding expense
     if (t.type === 'expense' && budgetLimit !== null) {
       const newTotal = totalExpenses + t.amount;
       if (newTotal > budgetLimit) {
@@ -59,13 +67,16 @@ const Index = () => {
   return (
     <div className="min-h-screen bg-background transition-colors duration-300">
       {/* Header */}
-      <header className="border-b border-border bg-card">
+      <header className="border-b border-border/50 bg-card/80 backdrop-blur-xl sticky top-0 z-50">
         <div className="container max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="h-9 w-9 rounded-lg bg-primary flex items-center justify-center">
+            <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center shadow-lg shadow-primary/20">
               <Wallet className="h-5 w-5 text-primary-foreground" />
             </div>
-            <h1 className="text-xl font-heading font-bold text-foreground">BudgetIQ</h1>
+            <div>
+              <h1 className="text-xl font-heading font-bold text-foreground">BudgetIQ</h1>
+              <p className="text-xs text-muted-foreground">Smart Finance Tracker</p>
+            </div>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
             <ThemeToggle />
@@ -84,25 +95,48 @@ const Index = () => {
         {/* Budget Alert */}
         <BudgetAlert isOverBudget={isOverBudget} totalExpenses={totalExpenses} budgetLimit={budgetLimit} />
 
+        {/* Quick Stats Badges */}
+        <QuickStatsBadges
+          transactions={transactions}
+          totalIncome={totalIncome}
+          totalExpenses={totalExpenses}
+          budgetLimit={budgetLimit}
+          balance={balance}
+        />
+
         {/* Summary Cards */}
         <SummaryCards balance={balance} totalIncome={totalIncome} totalExpenses={totalExpenses} budgetLimit={budgetLimit} />
 
-        {/* Income vs Expense Bar Chart */}
+        {/* Charts Row */}
         {transactions.length > 0 && (
-          <Card className="border-none shadow-sm animate-fade-in">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base font-heading">Income vs Expenses</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <IncomeExpenseChart transactions={transactions} />
-            </CardContent>
-          </Card>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card className="border-none shadow-sm bg-card/60 backdrop-blur-xl animate-fade-in">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base font-heading flex items-center gap-2">
+                  <Sparkles className="h-4 w-4 text-primary" />
+                  Income vs Expenses Trend
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <IncomeExpenseChart transactions={transactions} />
+              </CardContent>
+            </Card>
+
+            <Card className="border-none shadow-sm bg-card/60 backdrop-blur-xl animate-fade-in">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base font-heading">Expense Breakdown</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <CategoryBreakdown data={categoryBreakdown} totalExpenses={totalExpenses} />
+              </CardContent>
+            </Card>
+          </div>
         )}
 
         {/* Main Content */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Left: Add Transaction */}
-          <Card className="border-none shadow-sm">
+          <Card className="border-none shadow-sm bg-card/60 backdrop-blur-xl">
             <CardHeader className="pb-3">
               <CardTitle className="text-base font-heading">Add Transaction</CardTitle>
             </CardHeader>
@@ -112,7 +146,7 @@ const Index = () => {
           </Card>
 
           {/* Center: Transaction List */}
-          <Card className="border-none shadow-sm">
+          <Card className="border-none shadow-sm bg-card/60 backdrop-blur-xl">
             <CardHeader className="pb-3 space-y-3">
               <CardTitle className="text-base font-heading flex items-center justify-between">
                 Transactions
@@ -125,18 +159,18 @@ const Index = () => {
             </CardContent>
           </Card>
 
-          {/* Right: Breakdown, Insights & Savings */}
+          {/* Right: Activity, Insights & Savings */}
           <div className="space-y-6">
-            <Card className="border-none shadow-sm">
+            <Card className="border-none shadow-sm bg-card/60 backdrop-blur-xl">
               <CardHeader className="pb-3">
-                <CardTitle className="text-base font-heading">Expense Breakdown</CardTitle>
+                <CardTitle className="text-base font-heading">Recent Activity</CardTitle>
               </CardHeader>
               <CardContent>
-                <CategoryBreakdown data={categoryBreakdown} totalExpenses={totalExpenses} />
+                <RecentActivity transactions={transactions} />
               </CardContent>
             </Card>
 
-            <Card className="border-none shadow-sm">
+            <Card className="border-none shadow-sm bg-card/60 backdrop-blur-xl">
               <CardHeader className="pb-3">
                 <CardTitle className="text-base font-heading">Insights</CardTitle>
               </CardHeader>
@@ -145,7 +179,7 @@ const Index = () => {
               </CardContent>
             </Card>
 
-            <Card className="border-none shadow-sm">
+            <Card className="border-none shadow-sm bg-card/60 backdrop-blur-xl">
               <CardHeader className="pb-3">
                 <CardTitle className="text-base font-heading">Savings Goal</CardTitle>
               </CardHeader>
