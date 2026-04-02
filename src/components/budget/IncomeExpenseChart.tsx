@@ -1,4 +1,4 @@
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Area, AreaChart } from 'recharts';
 import { Transaction } from '@/types/budget';
 import { useMemo } from 'react';
 
@@ -10,7 +10,7 @@ export function IncomeExpenseChart({ transactions }: Props) {
   const data = useMemo(() => {
     const map: Record<string, { month: string; income: number; expense: number }> = {};
     transactions.forEach(t => {
-      const month = t.date.slice(0, 7); // YYYY-MM
+      const month = t.date.slice(0, 7);
       if (!map[month]) map[month] = { month, income: 0, expense: 0 };
       if (t.type === 'income') map[month].income += t.amount;
       else map[month].expense += t.amount;
@@ -30,26 +30,55 @@ export function IncomeExpenseChart({ transactions }: Props) {
   }
 
   return (
-    <div className="h-[220px]">
+    <div className="h-[250px]">
       <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={data} barGap={4}>
-          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+        <AreaChart data={data}>
+          <defs>
+            <linearGradient id="incomeGradient" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%" stopColor="hsl(162, 63%, 41%)" stopOpacity={0.3} />
+              <stop offset="95%" stopColor="hsl(162, 63%, 41%)" stopOpacity={0} />
+            </linearGradient>
+            <linearGradient id="expenseGradient" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%" stopColor="hsl(0, 72%, 51%)" stopOpacity={0.3} />
+              <stop offset="95%" stopColor="hsl(0, 72%, 51%)" stopOpacity={0} />
+            </linearGradient>
+          </defs>
+          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.5} />
           <XAxis dataKey="month" tick={{ fontSize: 12 }} stroke="hsl(var(--muted-foreground))" />
           <YAxis tick={{ fontSize: 12 }} stroke="hsl(var(--muted-foreground))" />
           <Tooltip
             formatter={(value: number) => `$${value.toFixed(2)}`}
             contentStyle={{
-              borderRadius: '8px',
-              border: 'none',
-              boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+              borderRadius: '12px',
+              border: '1px solid hsl(var(--border))',
+              boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
               fontSize: '13px',
               backgroundColor: 'hsl(var(--card))',
               color: 'hsl(var(--foreground))',
+              backdropFilter: 'blur(12px)',
             }}
           />
-          <Bar dataKey="income" fill="hsl(var(--income))" radius={[4, 4, 0, 0]} name="Income" />
-          <Bar dataKey="expense" fill="hsl(var(--expense))" radius={[4, 4, 0, 0]} name="Expenses" />
-        </BarChart>
+          <Area
+            type="monotone"
+            dataKey="income"
+            stroke="hsl(162, 63%, 41%)"
+            strokeWidth={2.5}
+            fill="url(#incomeGradient)"
+            dot={{ r: 4, fill: 'hsl(162, 63%, 41%)', strokeWidth: 2, stroke: 'hsl(var(--card))' }}
+            activeDot={{ r: 6 }}
+            name="Income"
+          />
+          <Area
+            type="monotone"
+            dataKey="expense"
+            stroke="hsl(0, 72%, 51%)"
+            strokeWidth={2.5}
+            fill="url(#expenseGradient)"
+            dot={{ r: 4, fill: 'hsl(0, 72%, 51%)', strokeWidth: 2, stroke: 'hsl(var(--card))' }}
+            activeDot={{ r: 6 }}
+            name="Expenses"
+          />
+        </AreaChart>
       </ResponsiveContainer>
     </div>
   );
