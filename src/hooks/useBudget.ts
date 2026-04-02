@@ -19,9 +19,11 @@ function loadState(): BudgetState {
   return { transactions: [], budgetLimit: null };
 }
 
+const initialState = loadState();
+
 export function useBudget() {
-  const [transactions, setTransactions] = useState<Transaction[]>(() => loadState().transactions);
-  const [budgetLimit, setBudgetLimitState] = useState<number | null>(() => loadState().budgetLimit);
+  const [transactions, setTransactions] = useState<Transaction[]>(initialState.transactions);
+  const [budgetLimit, setBudgetLimitState] = useState<number | null>(initialState.budgetLimit);
 
   // Persist to localStorage whenever state changes
   useEffect(() => {
@@ -78,6 +80,12 @@ export function useBudget() {
     // Top category
     if (categoryBreakdown.length > 0) {
       msgs.push(`You spend most on ${categoryBreakdown[0].name} ($${categoryBreakdown[0].amount.toFixed(2)})`);
+    }
+
+    // Highest single expense
+    const highest = expenses.reduce((max, t) => t.amount > max.amount ? t : max, expenses[0]);
+    if (highest) {
+      msgs.push(`Your highest expense is $${highest.amount.toFixed(2)} (${highest.category})`);
     }
 
     // Income vs expense ratio
