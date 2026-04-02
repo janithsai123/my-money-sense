@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import { Transaction, BudgetState } from '@/types/budget';
 
 const STORAGE_KEY = 'budget-tracker-data';
@@ -6,59 +6,59 @@ const STORAGE_KEY = 'budget-tracker-data';
 function loadState(): BudgetState {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return JSON.parse(raw);
-  } catch {}
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      return {
+        transactions: Array.isArray(parsed.transactions) ? parsed.transactions : [],
+        budgetLimit: typeof parsed.budgetLimit === 'number' ? parsed.budgetLimit : null,
+      };
+    }
+  } catch {
+    // ignore parse errors
+  }
   return { transactions: [], budgetLimit: null };
 }
 
-function saveState(state: BudgetState) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-}
-
 export function useBudget() {
-  const [state, setState] = useState<BudgetState>(loadState);
+  const [transactions, setTransactions] = useState<Transaction[]>(() => loadState().transactions);
+  const [budgetLimit, setBudgetLimitState] = useState<number | null>(() => loadState().budgetLimit);
 
-  const update = useCallback((fn: (prev: BudgetState) => BudgetState) => {
-    setState(prev => {
-      const next = fn(prev);
-      saveState(next);
-      return next;
-    });
-  }, []);
+  // Persist to localStorage whenever state changes
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ transactions, budgetLimit }));
+  }, [transactions, budgetLimit]);
 
   const addTransaction = useCallback((t: Omit<Transaction, 'id'>) => {
-    update(prev => ({
-      ...prev,
-      transactions: [...prev.transactions, { ...t, id: crypto.randomUUID() }],
-    }));
-  }, [update]);
+    const newTransaction: Transaction = {
+      ...t,
+      id: crypto.randomUUID(),
+    };
+    setTransactions(prev => [...prev, newTransaction]);
+  }, []);
 
   const deleteTransaction = useCallback((id: string) => {
-    update(prev => ({
-      ...prev,
-      transactions: prev.transactions.filter(t => t.id !== id),
-    }));
-  }, [update]);
+    setTransactions(prev => prev.filter(t => t.id !== id));
+  }, []);
 
   const setBudgetLimit = useCallback((limit: number | null) => {
-    update(prev => ({ ...prev, budgetLimit: limit }));
-  }, [update]);
+    setBudgetLimitState(limit);
+  }, []);
 
   const totalIncome = useMemo(
-    () => state.transactions.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0),
-    [state.transactions]
+    () => transactions.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0),
+    [transactions]
   );
 
   const totalExpenses = useMemo(
-    () => state.transactions.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0),
-    [state.transactions]
+    () => transactions.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0),
+    [transactions]
   );
 
   const balance = totalIncome - totalExpenses;
 
   const categoryBreakdown = useMemo(() => {
     const map: Record<string, number> = {};
-    state.transactions
+    transactions
       .filter(t => t.type === 'expense')
       .forEach(t => {
         map[t.category] = (map[t.category] || 0) + t.amount;
@@ -66,13 +66,13 @@ export function useBudget() {
     return Object.entries(map)
       .map(([name, amount]) => ({ name, amount }))
       .sort((a, b) => b.amount - a.amount);
-  }, [state.transactions]);
+  }, [transactions]);
 
-  const isOverBudget = state.budgetLimit !== null && totalExpenses > state.budgetLimit;
+  const isOverBudget = budgetLimit !== null && totalExpenses > budgetLimit;
 
   const insights = useMemo(() => {
     const msgs: string[] = [];
-    const expenses = state.transactions.filter(t => t.type === 'expense');
+    const expenses = transactions.filter(t => t.type === 'expense');
     if (expenses.length === 0) return msgs;
 
     // Top category
@@ -112,16 +112,22 @@ export function useBudget() {
       msgs.push(`Your average expense is $${avg.toFixed(2)}`);
     }
 
+    // Number of categories
+    if (categoryBreakdown.length > 1) {
+      msgs.push(`You have expenses across ${categoryBreakdown.length} categories`);
+    }
+
     return msgs;
-  }, [state.transactions, categoryBreakdown, totalIncome, totalExpenses]);
+  }, [transactions, categoryBreakdown, totalIncome, totalExpenses]);
 
   const clearAll = useCallback(() => {
-    update(() => ({ transactions: [], budgetLimit: null }));
-  }, [update]);
+    setTransactions([]);
+    setBudgetLimitState(null);
+  }, []);
 
   return {
-    transactions: state.transactions,
-    budgetLimit: state.budgetLimit,
+    transactions,
+    budgetLimit,
     totalIncome,
     totalExpenses,
     balance,
