@@ -79,9 +79,11 @@ export function useBudget() {
     const expenses = transactions.filter(t => t.type === 'expense');
     if (expenses.length === 0) return msgs;
 
-    // Top category
-    if (categoryBreakdown.length > 0) {
-      msgs.push(`You spend most on ${categoryBreakdown[0].name} ($${categoryBreakdown[0].amount.toFixed(2)})`);
+    // Top category with percentage
+    if (categoryBreakdown.length > 0 && totalExpenses > 0) {
+      const top = categoryBreakdown[0];
+      const pct = ((top.amount / totalExpenses) * 100).toFixed(0);
+      msgs.push(`You spend ${pct}% on ${top.name} ($${top.amount.toFixed(2)})`);
     }
 
     // Highest single expense
@@ -90,17 +92,17 @@ export function useBudget() {
       msgs.push(`Your highest expense is $${highest.amount.toFixed(2)} (${highest.category})`);
     }
 
-    // Income vs expense ratio
+    // Savings rate
     if (totalIncome > 0) {
       const savingsRate = ((totalIncome - totalExpenses) / totalIncome * 100).toFixed(0);
       if (Number(savingsRate) > 0) {
         msgs.push(`You're saving ${savingsRate}% of your income`);
       } else {
-        msgs.push(`You're spending more than you earn`);
+        msgs.push(`⚠ You're spending more than you earn`);
       }
     }
 
-    // Weekly trend
+    // Weekly trend with arrow indicator
     const now = new Date();
     const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
     const twoWeeksAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
@@ -111,18 +113,27 @@ export function useBudget() {
     }).reduce((s, t) => s + t.amount, 0);
 
     if (lastWeek > 0 && thisWeek > lastWeek) {
-      msgs.push(`Your expenses increased ${((thisWeek - lastWeek) / lastWeek * 100).toFixed(0)}% this week`);
+      msgs.push(`↑ Your expenses increased ${((thisWeek - lastWeek) / lastWeek * 100).toFixed(0)}% compared to last week`);
     } else if (lastWeek > 0 && thisWeek < lastWeek) {
-      msgs.push(`Your expenses decreased ${((lastWeek - thisWeek) / lastWeek * 100).toFixed(0)}% this week`);
+      msgs.push(`↓ Your expenses decreased ${((lastWeek - thisWeek) / lastWeek * 100).toFixed(0)}% compared to last week`);
     }
 
-    // Average transaction
+    // Spending reduction suggestion
+    if (categoryBreakdown.length > 1 && totalExpenses > 0) {
+      const top = categoryBreakdown[0];
+      const pct = (top.amount / totalExpenses) * 100;
+      if (pct > 35) {
+        msgs.push(`💡 Try reducing spending in ${top.name} — it's ${pct.toFixed(0)}% of your total`);
+      }
+    }
+
+    // Average expense
     if (expenses.length >= 3) {
       const avg = totalExpenses / expenses.length;
       msgs.push(`Your average expense is $${avg.toFixed(2)}`);
     }
 
-    // Number of categories
+    // Category count
     if (categoryBreakdown.length > 1) {
       msgs.push(`You have expenses across ${categoryBreakdown.length} categories`);
     }
@@ -146,6 +157,7 @@ export function useBudget() {
     insights,
     addTransaction,
     deleteTransaction,
+    editTransaction,
     setBudgetLimit,
     clearAll,
   };
