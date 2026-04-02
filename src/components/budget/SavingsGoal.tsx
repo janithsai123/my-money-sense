@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Target, Pencil } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -6,31 +6,22 @@ import { Progress } from '@/components/ui/progress';
 
 interface Props {
   balance: number;
+  savingsGoal: number | null;
+  onSetGoal: (goal: number | null) => void;
 }
 
-export function SavingsGoal({ balance }: Props) {
-  const [goal, setGoal] = useState<number | null>(() => {
-    try {
-      const v = localStorage.getItem('savings-goal');
-      return v ? parseFloat(v) : null;
-    } catch { return null; }
-  });
+export function SavingsGoal({ balance, savingsGoal, onSetGoal }: Props) {
   const [editing, setEditing] = useState(false);
-  const [value, setValue] = useState(goal?.toString() || '');
-
-  useEffect(() => {
-    if (goal !== null) localStorage.setItem('savings-goal', goal.toString());
-    else localStorage.removeItem('savings-goal');
-  }, [goal]);
+  const [value, setValue] = useState(savingsGoal?.toString() || '');
 
   const handleSave = () => {
     const parsed = parseFloat(value);
-    if (parsed > 0) setGoal(parsed);
-    else setGoal(null);
+    if (parsed > 0) onSetGoal(parsed);
+    else onSetGoal(null);
     setEditing(false);
   };
 
-  const progress = goal && goal > 0 ? Math.min((Math.max(balance, 0) / goal) * 100, 100) : 0;
+  const progress = savingsGoal && savingsGoal > 0 ? Math.min((Math.max(balance, 0) / savingsGoal) * 100, 100) : 0;
 
   if (editing) {
     return (
@@ -54,7 +45,7 @@ export function SavingsGoal({ balance }: Props) {
     );
   }
 
-  if (goal === null) {
+  if (savingsGoal === null) {
     return (
       <div className="text-center py-4">
         <Target className="h-5 w-5 mx-auto mb-2 text-muted-foreground opacity-40" />
@@ -68,13 +59,13 @@ export function SavingsGoal({ balance }: Props) {
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <span className="text-sm text-muted-foreground">Savings Goal</span>
-        <button onClick={() => { setValue(goal.toString()); setEditing(true); }} className="p-1 rounded hover:bg-muted transition-colors">
+        <button onClick={() => { setValue(savingsGoal.toString()); setEditing(true); }} className="p-1 rounded hover:bg-muted transition-colors">
           <Pencil className="h-3 w-3 text-muted-foreground" />
         </button>
       </div>
       <div className="flex items-baseline gap-1">
         <span className="text-xl font-heading font-bold text-foreground">${Math.max(balance, 0).toFixed(2)}</span>
-        <span className="text-sm text-muted-foreground">/ ${goal.toFixed(2)}</span>
+        <span className="text-sm text-muted-foreground">/ ${savingsGoal.toFixed(2)}</span>
       </div>
       <Progress value={progress} className="h-2" />
       <p className="text-xs text-muted-foreground">{progress.toFixed(0)}% achieved</p>
