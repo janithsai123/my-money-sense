@@ -19,11 +19,9 @@ function loadState(): BudgetState {
   return { transactions: [], budgetLimit: null };
 }
 
-const initialState = loadState();
-
 export function useBudget() {
-  const [transactions, setTransactions] = useState<Transaction[]>(initialState.transactions);
-  const [budgetLimit, setBudgetLimitState] = useState<number | null>(initialState.budgetLimit);
+  const [transactions, setTransactions] = useState<Transaction[]>(() => loadState().transactions);
+  const [budgetLimit, setBudgetLimitState] = useState<number | null>(() => loadState().budgetLimit);
 
   // Persist to localStorage whenever state changes
   useEffect(() => {
